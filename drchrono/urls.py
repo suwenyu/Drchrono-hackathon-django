@@ -8,8 +8,11 @@ import views
 
 
 urlpatterns = [
-    url(r'^setup/$', views.SetupView.as_view(), name='setup'),
-    url(r'^welcome/$', views.DoctorWelcome.as_view(), name='setup'),
+    url(r'^login/$', views.SetupView.as_view(), name='login'),
+    # url(r'^welcome/$', views.DoctorWelcome.as_view(), name='setup'),
+    url(r'^index/$', views.index, name='index'),
+
+
     url(r'^admin/', include(admin.site.urls)),
     url(r'', include('social.apps.django_app.urls', namespace='social')),
 ]

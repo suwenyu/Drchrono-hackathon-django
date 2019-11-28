@@ -16,3 +16,5 @@ services:
     build:
       context: .
       dockerfile: ./docker/drchrono-dockerfile
+    environment:
+     - PYTHONUNBUFFERED=1
