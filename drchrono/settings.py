@@ -96,7 +96,7 @@ DATABASES = {
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Chicago'
 
 USE_I18N = True
 
@@ -122,7 +122,7 @@ SOCIAL_AUTH_DRCHRONO_KEY = os.getenv('SOCIAL_AUTH_CLIENT_ID')
 SOCIAL_AUTH_DRCHRONO_SECRET = os.getenv('SOCIAL_AUTH_SECRET')
 
 
-LOGIN_REDIRECT_URL = '/welcome/'
+LOGIN_REDIRECT_URL = '/index/'
 LOGIN_URL = 'login/drchrono'
 
 SHELL_PLUS = "ipython"

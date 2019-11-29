@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %} Patient Checkin {% endblock %}
+{% block body %}
+
+
+<table class="table">
+  <thead>
+    <tr>
+      <th scope="col">Patient Name</th>
+      <th scope="col">Scheduled Start Time</th>
+      <th scope="col">Scheduled End Time</th>
+      <th scope="col">Status</th>
+      <th scope="col">Room</th>
+      <th scope="col">Check In</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for appointment in appointments %}
+    <tr>
+      <td>{{ patient.first_name }}  {{ patient.last_name }}</td>
+      <td>{{ appointment.scheduled_time }}</td>
+      <td>{{ appointment.scheduled_end_time }}</td>
+      <td>
+        {% if appointment.status == "Arrived" %}
+            <span class="badge badge-info">Arrived</span>
+        {% elif appointment.status == "In Session" %}
+            <span class="badge badge-warning">In Session</span>
+        {% elif appointment.status == "Complete" %}
+            <span class="badge badge-success">Complete</span>
+        {% elif appointment.status == "Cancelled" %}
+            <span class="badge badge-danger">Cancelled</span>
+        {% else %}
+            <span class="badge badge-secondary">Not Checked In</span>
+        {% endif %}
+      </td>
+      <td>{{ appointment.exam_room }}</td>
+      <td>
+        {% if appointment.status != "In Session" and appointment.status != "Complete" %}
+        <button type="button" class="btn btn-light" id="{{ appointment.id }}" value="{{ appointment.id }}">CheckIn</button>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+
+  </tbody>
+</table>
+
+<a href="{% url 'update_patient_info' patient=patient.id %}" class="btn btn-primary">Update Demographic Information</a>
+
+<!-- Modal -->
+<div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel"></h5>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+    $("button").click(function(event) {
+        event.preventDefault();
+
+        console.log($(this).val());
+        $.ajax({
+            type: "POST",
+            url: "{% url 'comfirmcheckin' %}",
+            data: {
+                "appointment": $(this).val()
+            },
+            success: function(result) {
+                // console.log(result);
+                console.log('success');
+                $('#exampleModalLabel').text(result);
+                $('#exampleModal').modal('show');
+                // alert('ok');
+                // var timer = setTimeout(function() {
+                //     window.location="{% url 'index' %}"
+                // }, 3000);
+            },
+            error: function(result) {
+              console.log(result);
+              if(result.status==403){
+                console.log("test");
+                $('#exampleModalLabel').text(result['responseText']);
+                $('#exampleModal').modal('show');
+              }
+                // alert('ok');
+            }
+        });
+    });
+</script>
+
+
+{% endblock %}
+
+
+
+{#        {% if appointment.status != "Arrived" and appointment.status != "In Session" and appointment.status != "Complete" and appointment.status != "Cancelled" %}
+        
+        {% else %}
+        <button type="button" class="btn btn-secondary" disabled>Not applied</button>
+        {% endif %} #}

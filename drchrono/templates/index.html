@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %} DrChrono Kiosk {% endblock %}
+
+{% block body %}
+
+    <h3><i class="fas fa-calendar-check"></i> Appointments List:</h3>
+
+    <p><i class="fas fa-clock"></i> {{ current_time }}</p>
+    {% for appointment in appointments %}
+    <div class="media bg-light mt-5">
+      <div class="media-body">
+        <h4 class="mt-1">{{ appointment.patient_name }}</h4>
+            <div class="status">
+                {% if appointment.status == "Arrived" %}
+                    <span class="badge badge-info">Arrived</span>
+                {% elif appointment.status == "In Session" %}
+                    <span class="badge badge-warning">In Session</span>
+                {% elif appointment.status == "Complete" %}
+                    <span class="badge badge-success">Complete</span>
+                {% elif appointment.status == "Cancelled" %}
+                    <span class="badge badge-danger">Cancelled</span>
+                {% else %}
+                    <span class="badge badge-secondary">Not Checked In</span>
+                {% endif %}
+            </div>
+            <div class="time">
+                Appointment Time : {{ appointment.scheduled_time }} - {{ appointment.scheduled_end_time }}
+                <br>
+                Duration: {{ appointment.duration }} mins
+                <br>
+                Exam Room Number : {{ appointment.exam_room }}
+                <br>
+                {% if appointment.waiting_time %}
+                Waiting Time : {{ appointment.waiting_time }} mins
+                {% endif %}
+            </div>
+
+            {% if appointment.status == "Arrived" %}
+            <a class="btn btn-outline-success" href="{% url 'startappointment' appointment=appointment.id %}">Start</a>
+            {% endif %}
+            {% if appointment.status == "In Session" %}
+            <a class="btn btn-outline-warning" href="{% url 'finishappointment' appointment=appointment.id %}">Finish</a>
+            {% endif %}
+            {% if appointment.status != "In Session" and appointment.status != "Complete" and appointment.status != "Cancelled" %}
+            <a class="btn btn-outline-danger" href="{% url 'cancelappointment' appointment=appointment.id %}">Cancel</a>
+            {% endif %}
+      </div>
+    </div>
+
+    {% empty %}
+        <h5>No appointments today.</h5>
+    {% endfor %}
+    
+
+    <p>Average Wait time: {{ wait_time }} minutes</p>
+    <a class="btn btn-default" href="{% url 'init' %}">Update From Web</a>
+{% endblock %}
+
+
+{# {% block extra_header %}<meta http-equiv="refresh" content="5" >{% endblock %} #}

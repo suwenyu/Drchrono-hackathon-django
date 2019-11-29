@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %} Patient Checkin {% endblock %}
+{% block body %}
+    <div class="checkin_form text-center">
+        <h3>Please Fill in Info</h3>
+        <p>Enter either First and Last Name or Social Security Number</p>
+        
+        {% if message %}
+            <div class = "alert alert-danger col-md-6 offset-md-3">
+                {{ message }}
+            </div>
+        {% endif %}
+
+        <form action="{% url 'checkin' %}" method="post">
+            {% csrf_token %}
+
+            {% for field in check_form %}
+                
+                <div class="form-group col-md-6 offset-md-3">
+                    
+                    {{ field.label_tag }} {% if field.field.required %}<span class="required">*</span>{% endif %}
+                    {{ field }}
+                    <strong style="color:#b30505">{{ field.errors.as_text }}</strong>
+                    
+                    {% if field.help_text %}
+                    <p class="help">{{ field.help_text|safe }}</p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            <button type="submit" class="btn btn-primary">Lookup Appointment</button>
+        </form>
+    </div>
+    
+
+    
+    
+{% endblock %}
