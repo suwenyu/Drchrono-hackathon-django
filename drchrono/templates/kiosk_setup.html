@@ -1,8 +1,14 @@
-<!DOCTYPE html>
-<html>
-  <body>
-    <a href="{% url 'social:begin' 'drchrono' %}">
-      Set up your Check-in kiosk by logging into drchrono!
-    </a>
-  </body>
-</html>
+{% extends 'base.html' %}
+{% block title %}Appointment Confirmed{% endblock %}
+{% block body %}
+<div class="jumbotron">
+    <h1>DrChrono Check-In Kiosk</h1>
+    <ul>
+        <li>Written in Django + Jquery + Bootstrap</li>
+        <li>This project allows user to check-in with Kiosk.
+    </ul>
+    <a class="btn btn-light" href="{% url 'social:begin' 'drchrono' %}">Login Drchrono </a>
+</div>
+
+{% endblock %}
+

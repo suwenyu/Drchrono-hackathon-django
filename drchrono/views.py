@@ -11,8 +11,8 @@ from django.http import HttpResponse, HttpResponseNotFound
 
 from drchrono.endpoints import DoctorEndpoint, AppointmentEndpoint, PatientEndpoint
 from drchrono.models import Appointment, Patient, Doctor
-from drchrono.serializers import AppointmentSerializer1
-from drchrono.forms import checkin_form, patient_info_form
+from drchrono.serializers import AppointmentSerializer, retrieveAppointmentSerializer
+from drchrono.forms import check_form, patient_info_form
 
 from drchrono.sync import synchron_all_data
 
@@ -21,16 +21,18 @@ from django.utils.timezone import now
 
 from django.db import models
 
+def login(request):
+    if request.user.is_authenticated():
+        return redirect('index')
+
+    return render(request, 'kiosk_setup.html')
+
 
 @login_required(login_url='/login')
 def synchron_db(request):
     synchron_all_data()
+    print "Sync everything, then redirect back to the today screen"
     return redirect('index')
-
-@login_required(login_url='/login')
-def logout(request):
-    django_logout(request)
-    return redirect('login')
 
 
 @login_required(login_url='/login')
@@ -38,6 +40,10 @@ def index(request):
 
     oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
     access_token = oauth_provider.extra_data['access_token']
+
+    api = DoctorEndpoint(access_token)
+    doctor = next(api.list())
+    request.session['doctor'] = doctor['id']
 
     context = {}
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -48,6 +54,7 @@ def index(request):
     queryset = Appointment.objects.filter(
         scheduled_time__gte=today,
         scheduled_time__lte=tomorrow,
+        doctor=doctor['id']
     ).order_by('scheduled_time')
 
     serializer_class = retrieveAppointmentSerializer(queryset, many=True)
@@ -56,6 +63,7 @@ def index(request):
     wait_time = Appointment.objects.filter(
         scheduled_time__gte=today,
         scheduled_time__lte=tomorrow,
+        doctor=doctor['id'],
         waiting_time__isnull=False
     ).aggregate(models.Avg('waiting_time'))['waiting_time__avg']
     context['wait_time'] = wait_time
@@ -63,12 +71,11 @@ def index(request):
     context['current_time'] = now()
 
     return render(request, 'index.html', context)
-
-
+        
 @login_required(login_url='/login')
 def checkin(request):
 
-    form = checkin_form(request.POST or None)
+    form = check_form(request.POST or None)
     if form.is_valid():
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         # today = datetime.strptime("2019-11-24", "%Y-%m-%d")
@@ -148,6 +155,127 @@ def comfirmcheckin(request):
     return HttpResponse(message, status=403)
 
 
+@login_required(login_url='/login')
+def startAppointments(request, appointment):
+    appointment_id = appointment
+    status = 'In Session'
+    
+    oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
+    access_token = oauth_provider.extra_data['access_token']
+    endpoint = AppointmentEndpoint(access_token)
+    endpoint.update(appointment_id, {'status':status})
+    # api_data = endpoint.fetch(id=appointment_id)
+
+    # serializer = AppointmentSerializer(data=api_data)
+    # if serializer.is_valid():
+    #     serializer.save()
+    app = Appointment.objects.filter(id=appointment_id).values('checkin_time')
+    checkin_time = app[0]['checkin_time'] if app[0]['checkin_time'] != None else now()
+
+    params = {'status' : status, 'start_appointment_time': now(), 'waiting_time' : round((now() - checkin_time).total_seconds()/60) }
+    Appointment.objects.filter(id=appointment_id).update(**params)
+
+        # waiting = (now - app_check_time[0]['checkin_time']).to_seconds()/60
+        # Appointment.objects.filter(id=appointment_id).update(waiting_time=waiting, start_appointment_time=now)
+
+    return redirect('index')
+
+@login_required(login_url='/login')
+def finishAppointments(request, appointment):
+    appointment_id = appointment
+    status = 'Complete'
+    
+    oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
+    access_token = oauth_provider.extra_data['access_token']
+    endpoint = AppointmentEndpoint(access_token)
+    endpoint.update(appointment_id, {'status':status})
+    # api_data = endpoint.fetch(id=appointment_id)
+
+    # serializer = AppointmentSerializer(data=api_data)
+    # if serializer.is_valid():
+    #     serializer.save()
+    params = {'status' : status}
+    Appointment.objects.filter(id=appointment_id).update(**params)
+
+    return redirect('index')
+    
+
+@login_required(login_url='/login')
+def cancelAppointments(request, appointment):
+    appointment_id = appointment
+    status = 'Cancelled'
+    
+    oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
+    access_token = oauth_provider.extra_data['access_token']
+    endpoint = AppointmentEndpoint(access_token)
+    endpoint.update(appointment_id, {'status':status})
+    api_data = endpoint.fetch(id=appointment_id)
+
+    serializer = AppointmentSerializer(data=api_data)
+    if serializer.is_valid():
+        serializer.save()
+
+        return redirect('index')
+
+
+@login_required(login_url='/login')
+def update_patient_info(request, patient):
+    patient_id = patient
+
+    oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
+    access_token = oauth_provider.extra_data['access_token']
+
+    form = patient_info_form(request.POST or None)
+    if form.is_valid():
+
+        params = {}
+        for field in form.cleaned_data:
+            if form.cleaned_data[field] != "":
+                params[field] = form.cleaned_data[field]
+
+        print params
+        endpoint = PatientEndpoint(access_token)
+        endpoint.update(patient_id, params)
+        api_data = endpoint.fetch(id=patient_id)
+        print api_data
+
+        return redirect('index')
+    
+    patient = Patient.objects.filter(id=patient_id).values()[0];
+
+    form = patient_info_form(initial=patient)
+    return render(request, 'patient_info.html', {'form' : form, 'patient' : patient })
+
+
+@login_required(login_url='/login')
+def logout(request):
+    django_logout(request)
+    return redirect('login')
+
+
+@login_required(login_url='/login')
+def test1(request):
+    queryset = Appointment.objects.all()
+
+    serializer_class = retrieveAppointmentSerializer(queryset, many=True)
+    content = serializer_class.data
+    print content
+    return HttpResponse('')
+
+@login_required(login_url='/login')
+def test(request):
+    
+    appointment_id = "134913638"
+    oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
+    access_token = oauth_provider.extra_data['access_token']
+    endpoint = AppointmentEndpoint(access_token)
+    endpoint.update(appointment_id, {'status': "Arrived"})
+    api_data = endpoint.fetch(id=appointment_id)
+    print api_data
+
+    return render(request, 'doctor_welcome.html', {"appointments": api_data })
+
+
 # class SetupView(TemplateView):
 #     """
 #     The beginning of the OAuth sign-in flow. Logs a user into the kiosk, and saves the token.
@@ -190,3 +318,34 @@ def comfirmcheckin(request):
 #         kwargs['doctor'] = doctor_details
 #         return kwargs
 
+# class TestAppointment(TemplateView):
+#     template_name = 'test_appointments.html'
+
+#     def get_token(self):
+#         """
+#         Social Auth module is configured to store our access tokens. This dark magic will fetch it for us if we've
+#         already signed in.
+#         """
+#         oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
+#         access_token = oauth_provider.extra_data['access_token']
+#         return access_token
+
+#     def make_api_request(self):
+#         """
+#         Use the token we have stored in the DB to make an API request and get doctor details. If this succeeds, we've
+#         proved that the OAuth setup is working
+#         """
+#         # We can create an instance of an endpoint resource class, and use it to fetch details
+#         access_token = self.get_token()
+#         api = AppointmentEndpoint(access_token)
+#         # Grab the first doctor from the list; normally this would be the whole practice group, but your hackathon
+#         # account probably only has one doctor in it.
+#         return next(api.list(date="2019-11-22"))
+
+#     def get_context_data(self, **kwargs):
+#         kwargs = super(TestAppointment, self).get_context_data(**kwargs)
+#         # Hit the API using one of the endpoints just to prove that we can
+#         # If this works, then your oAuth setup is working correctly.
+#         appointments_details = self.make_api_request()
+#         kwargs['appointments'] = appointments_details
+#         return kwargs

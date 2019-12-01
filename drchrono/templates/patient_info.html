@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %} Patient Checkin {% endblock %}
+{% block body %}
+    <div class="checkin_form text-center">
+        <h3>Please Update your Info</h3>
+        
+        {% if message %}
+            <div class = "alert alert-danger col-md-6 offset-md-3">
+                {{ message }}
+            </div>
+        {% endif %}
+    
+        <h5>Hello {{ patient.first_name }} {{ patient.last_name }}, </h5>
+
+        <form action="{% url 'update_patient_info' patient=patient.id %}" method="post">
+            {% csrf_token %}
+
+            {% for field in form %}
+                
+                <div class="form-group col-md-6 offset-md-3">
+                    
+                    {{ field.label_tag }} {% if field.field.required %}<span class="required">*</span>{% endif %}
+                    {{ field }}
+                    <strong style="color:#b30505">{{ field.errors.as_text }}</strong>
+                    
+                    {% if field.help_text %}
+                    <p class="help">{{ field.help_text|safe }}</p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            <button type="submit" class="btn btn-primary">Update</button>
+        </form>
+    </div>
+
+
+<script>
+
+
+    // $("#test").submit(function(event) {
+    //     event.preventDefault();
+    //     console.log(JSON.stringify($("#test").serializeArray()));
+    //     $.ajax({
+    //         url: "{% url 'update_patient_info' patient=patient.id %}",
+    //         data: JSON.stringify($("#test").serializeArray()),
+    //         type: 'POST',
+    //         dataType: 'json',
+    //         headers: {'X-CSRFToken': '{{ csrf_token }}'},    
+    //         contentType: 'application/json; charset=utf-8', 
+    //         success: function(result) {
+    //             $('#exampleModal').modal('show');
+    //             // alert('ok');
+    //             // var timer = setTimeout(function() {
+    //             //     window.location="{% url 'index' %}"
+    //             // }, 3000);
+    //         },
+    //         error: function(result) {
+    //             $('#exampleModal1').modal('show');
+    //             // alert('ok');
+    //         }
+    //     });
+    // });
+</script>
+
+    
+    
+{% endblock %}

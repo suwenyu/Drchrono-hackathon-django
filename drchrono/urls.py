@@ -15,11 +15,11 @@ urlpatterns = [
 
     url(r'^checkin/$', views.checkin, name='checkin'),
     url(r'^comfirmcheckin/$', views.comfirmcheckin, name='comfirmcheckin'),
-    # url(r'^appointment/start/(?P<appointment>\d+)', views.startAppointments, name='startappointment'),
-    # url(r'^appointment/finish/(?P<appointment>\d+)', views.finishAppointments, name='finishappointment'),
-    # url(r'^appointment/cancel/(?P<appointment>\d+)', views.cancelAppointments, name='cancelappointment'),
+    url(r'^appointment/start/(?P<appointment>\d+)', views.startAppointments, name='startappointment'),
+    url(r'^appointment/finish/(?P<appointment>\d+)', views.finishAppointments, name='finishappointment'),
+    url(r'^appointment/cancel/(?P<appointment>\d+)', views.cancelAppointments, name='cancelappointment'),
 
-    # url(r'^patient/update/(?P<patient>\d+)$', views.update_patient_info, name="update_patient_info"),
+    url(r'^patient/update/(?P<patient>\d+)$', views.update_patient_info, name="update_patient_info"),
 
 	url(r'test1/$', views.test1, name='test'),    
 
