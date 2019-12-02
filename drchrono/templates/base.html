@@ -40,13 +40,13 @@
     {% if request.user.is_authenticated %}
     <ul class="navbar-nav mr-auto">
       <li class="nav-item active">
-        <a class="nav-link" href="{% url 'index' %}">Home <span class="sr-only">(current)</span></a>
+        <a class="nav-link" href="{% url 'index' %}"><i class="fas fa-home"></i> Home <span class="sr-only">(current)</span></a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="{% url 'checkin' %}">Check In</a>
+        <a class="nav-link" href="{% url 'checkin' %}"><i class="far fa-check-square"></i> Check In</a>
       </li>
       <li>
-        <a class="nav-link" href="{% url 'init' %}">Update from Remote</a>
+        <a class="nav-link" href="{% url 'init' %}"><i class="fas fa-sync"></i> Update from Remote</a>
       </li>
     </ul>
     {% endif %}
@@ -66,10 +66,10 @@
 
 
 
-<div class="container w-50">
+
 {% block body %}
 {% endblock %}
-</div>
+
 </body>
 <script src="{% static 'js/main.js' %}"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>

@@ -2,7 +2,7 @@
 {% block title %} Patient Checkin {% endblock %}
 {% block body %}
 
-
+<div class="container w-75">
 <table class="table">
   <thead>
     <tr>
@@ -18,8 +18,8 @@
     {% for appointment in appointments %}
     <tr>
       <td>{{ patient.first_name }}  {{ patient.last_name }}</td>
-      <td>{{ appointment.scheduled_time }}</td>
-      <td>{{ appointment.scheduled_end_time }}</td>
+      <td>{{ appointment.scheduled_time|date:'P' }}</td>
+      <td>{{ appointment.scheduled_end_time|date:'P' }}</td>
       <td>
         {% if appointment.status == "Arrived" %}
             <span class="badge badge-info">Arrived</span>
@@ -46,6 +46,7 @@
 </table>
 
 <a href="{% url 'update_patient_info' patient=patient.id %}" class="btn btn-primary">Update Demographic Information</a>
+</div>
 
 <!-- Modal -->
 <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">

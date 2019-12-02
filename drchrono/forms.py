@@ -1,6 +1,6 @@
 from django import forms
 from django.forms import widgets
-
+import re
 
 # Add your forms here
 
@@ -51,6 +51,8 @@ class patient_info_form(forms.Form):
     address = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
     city = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
     cell_phone = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    home_phone = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    zip_code = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
 
     def clean_social_security_number(self):
         ssn = self.cleaned_data['social_security_number']
@@ -66,6 +68,38 @@ class patient_info_form(forms.Form):
             raise forms.ValidationError('Please insert valid social security number(***-**-****)')
         return ssn
 
+    def clean_cell_phone(self):
+        phone = self.cleaned_data['cell_phone']
+
+        # regex= "\(\w{3}\)\ \w{3}-\w{4}"
+        regex = "^\(\d{3}\)\s\d{3}-\d{4}$"
+        prog = re.compile(regex)
+
+        if not prog.match(phone):
+            raise forms.ValidationError('Please insert valud phone number ( (***) ***-**** )')
+        return phone
+
+    def clean_home_phone(self):
+        phone = self.cleaned_data['home_phone']
+        # print phone
+
+        regex = "^\(\d{3}\)\s\d{3}-\d{4}$"
+        prog = re.compile(regex)
+        if not prog.match(phone):
+            raise forms.ValidationError('Please insert valud phone number ( (***) ***-**** )')
+        return phone
+
+
+    def clean_zip_code(self):
+        zip_code = self.cleaned_data['zip_code']
+        print zip_code
+
+        regex = '^\w{5}$'
+        prog = re.compile(regex)
+
+        if not prog.match(zip_code):
+            raise forms.ValidationError('Please insert valud phone number (*****)')
+        return zip_code
     # write cell phone constraints and home phone
     # add ethnicity field
     # add state and zip code info

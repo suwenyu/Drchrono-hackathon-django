@@ -9,8 +9,7 @@ from django.utils.dateparse import parse_datetime
 from django.utils.timezone import now
 
 
-
-class DoctorSerializer1(serializers.Serializer):
+class DoctorSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     first_name = serializers.CharField(max_length=255)
     last_name = serializers.CharField(max_length=255)
@@ -39,7 +38,7 @@ class DoctorSerializer1(serializers.Serializer):
 
     
 
-class PatientSerializer1(serializers.Serializer):
+class PatientSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     first_name = serializers.CharField(max_length=255)
     last_name = serializers.CharField(max_length=255)
@@ -67,7 +66,7 @@ class PatientSerializer1(serializers.Serializer):
 
     #     return Patient(**attrs)
 
-class AppointmentSerializer1(serializers.Serializer):
+class AppointmentSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     patient = serializers.IntegerField()
     doctor = serializers.IntegerField()
@@ -77,63 +76,112 @@ class AppointmentSerializer1(serializers.Serializer):
     exam_room = serializers.IntegerField()
 
     scheduled_end_time = serializers.DateTimeField(required=False)
+    checkin_time = serializers.DateTimeField(required=False)
+    waiting_time = serializers.IntegerField(required=False)
+    start_appointment_time = serializers.DateTimeField(required=False)
     
-
-    def create(self, validated_data):
+    def judge_doctor_patient(self, validated_data):
         doctor_id = validated_data.pop('doctor')
         try:
             validated_data['doctor'] = Doctor.objects.get(pk=doctor_id)
         except Doctor.DoesNotExist:
-            return
+            return False
 
         patient_id = validated_data.pop('patient')
-
         try:
             validated_data['patient'] = Patient.objects.get(pk=patient_id)
         except Patient.DoesNotExist:
-            return
+            return False
 
-        validated_data['scheduled_end_time'] = validated_data['scheduled_time'] + timedelta(minutes=validated_data['duration'])
+        return True
+
+    def judge_status(self, validated_data):
+        status = validated_data.get('status', None)
+        validated_data['checkin_time'] = None
+        validated_data['waiting_time'] = None
+        validated_data['start_appointment_time'] = None
+
+        appointment_id = validated_data.get('id', None)
+        if appointment_id:
+
+            if status == "Arrived":
+                validated_data['checkin_time'] = now()
+
+            if status == "In Session" or status == "Complete":
+                app = Appointment.objects.filter(pk=appointment_id).values('checkin_time')
+                checkin_time = app[0]['checkin_time']
+                if not checkin_time:
+                    validated_data['checkin_time'] = now()
+                    validated_data['waiting_time'] = 0
+                    validated_data['start_appointment_time'] = now()
+                else:
+                    validated_data['checkin_time'] = checkin_time
+                    validated_data['waiting_time'] = round((now() - checkin_time).total_seconds()/60) 
+                    validated_data['start_appointment_time'] = now()
+
+        return validated_data
+
+
+
+    def create(self, validated_data):
+        if self.judge_doctor_patient(validated_data):
+        # doctor_id = validated_data.pop('doctor')
+        # try:
+        #     validated_data['doctor'] = Doctor.objects.get(pk=doctor_id)
+        # except Doctor.DoesNotExist:
+        #     return
+
+        # patient_id = validated_data.pop('patient')
+
+        # try:
+        #     validated_data['patient'] = Patient.objects.get(pk=patient_id)
+        # except Patient.DoesNotExist:
+        #     return
+
+            validated_data['scheduled_end_time'] = validated_data['scheduled_time'] + timedelta(minutes=validated_data['duration'])
+
 
         # validated_data['scheduled_end_time'] = datetime.strptime(validated_data['scheduled_time']) + timedelta(minutes=validated_data['duration'])
-        return Appointment.objects.create(**validated_data)
+            return Appointment.objects.create(**validated_data)
+
 
     def update(self, instance, validated_data):
-        doctor_id = validated_data.pop('doctor')
-        try:
-            validated_data['doctor'] = Doctor.objects.get(pk=doctor_id) 
-        except Doctor.DoesNotExist:
-            return
+        # print validated_data, instance
 
-        patient_id = validated_data.pop('patient')
+        if self.judge_doctor_patient(validated_data):
 
-        try:
-            validated_data['patient'] = Patient.objects.get(pk=patient_id)
-        except Patient.DoesNotExist:
-            return
+            validated_data['scheduled_end_time'] = validated_data['scheduled_time'] + timedelta(minutes=validated_data['duration'])
+            
 
-        
-        validated_data['scheduled_end_time'] = validated_data['scheduled_time'] + timedelta(minutes=validated_data['duration'])
-        for field_name in self.fields:
-            setattr(instance, field_name, validated_data[field_name])
-        
-        # print instance
-        instance.save()
-        return instance
+            validated_data = self.judge_status(validated_data)
+
+            for field in self.fields:
+                setattr(instance, field, validated_data[field])
+
+            # print instance
+            instance.save()
+            return instance
 
 
+class retrieveAppointmentSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+
+    status = serializers.CharField(max_length=255, allow_blank=True)
+    scheduled_time = serializers.DateTimeField()
+    duration = serializers.IntegerField()
+    exam_room = serializers.IntegerField()
+
+    scheduled_end_time = serializers.DateTimeField(required=False)
+    checkin_time = serializers.DateTimeField(required=False)
+    waiting_time = serializers.IntegerField(required=False)
+    start_appointment_time = serializers.DateTimeField(required=False)
 
 
-
-class retrieveAppointmentSerializer(serializers.ModelSerializer):
     waiting_time = serializers.SerializerMethodField()
     patient_name = serializers.StringRelatedField(source='patient')
     scheduled_time = serializers.DateTimeField(format='%I:%M %p')
     scheduled_end_time = serializers.DateTimeField(format='%I:%M %p')
 
-    class Meta:
-        model = Appointment
-        fields = ['id', 'patient', 'doctor', 'status', 'scheduled_time', 'duration', 'exam_room', 'scheduled_end_time', 'checkin_time', 'waiting_time', 'patient_name', 'start_appointment_time']
 
     def get_waiting_time(self, obj):
         # print obj.id, obj.start_appointment_time

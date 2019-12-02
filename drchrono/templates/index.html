@@ -2,10 +2,12 @@
 {% block title %} DrChrono Kiosk {% endblock %}
 
 {% block body %}
+    <div class="container w-50">
 
-    <h3><i class="fas fa-calendar-check"></i> Appointments List:</h3>
+    <h3>Today's Appointments :</h3>
 
-    <p><i class="fas fa-clock"></i> {{ current_time }}</p>
+    <p><i class="fas fa-calendar-day"></i> {{ current_time }}</p>
+    <p><i class="fas fa-clock"></i> Average Waiting time: {{ wait_time }} minutes</p>
     {% for appointment in appointments %}
     <div class="media bg-light mt-5">
       <div class="media-body">
@@ -52,9 +54,10 @@
     {% endfor %}
     
     {% if wait_time %}
-    <p>Average Wait time: {{ wait_time }} minutes</p>
+    
     {% endif %}
 
+    </div>
 {% endblock %}
 
 

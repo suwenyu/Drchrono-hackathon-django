@@ -1,6 +1,6 @@
 from drchrono.endpoints import DoctorEndpoint, PatientEndpoint, AppointmentEndpoint
 from drchrono.models import Doctor, Patient, Appointment
-from drchrono.serializers import DoctorSerializer1, PatientSerializer1, AppointmentSerializer1
+# from drchrono.serializers import DoctorSerializer1, PatientSerializer1, AppointmentSerializer1
 from drchrono.serializers import DoctorSerializer, PatientSerializer, AppointmentSerializer
 
 from social_django.models import UserSocialAuth
@@ -13,9 +13,10 @@ class synchron_data():
     def __init__(self):
         oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
         self.access_token = oauth_provider.extra_data['access_token']
-        self.today = now()
-        self.two_days_ago = self.today - timedelta(days=2)
-        self.two_days_after = self.today + timedelta(days=2)
+        # self.today = now()
+        self.today = datetime.strptime("2019-11-26", "%Y-%m-%d")
+        self.two_days_ago = self.today - timedelta(days=1)
+        self.two_days_after = self.today + timedelta(days=1)
 
     def synchron(self, Endpoint, Serializer, Model, type_name):
         endpoint = Endpoint(self.access_token)
@@ -69,9 +70,9 @@ class synchron_data():
     
 def synchron_all_data():
     object_data = synchron_data()
-    object_data.synchron(DoctorEndpoint, DoctorSerializer1, Doctor, 'doctor')
-    object_data.synchron(PatientEndpoint, PatientSerializer1, Patient, 'patient')
-    object_data.synchron(AppointmentEndpoint, AppointmentSerializer1, Appointment, 'appointment')
+    object_data.synchron(DoctorEndpoint, DoctorSerializer, Doctor, 'doctor')
+    object_data.synchron(PatientEndpoint, PatientSerializer, Patient, 'patient')
+    object_data.synchron(AppointmentEndpoint, AppointmentSerializer, Appointment, 'appointment')
 
     
 

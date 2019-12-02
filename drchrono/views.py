@@ -12,7 +12,7 @@ from django.http import HttpResponse, HttpResponseNotFound
 from drchrono.endpoints import DoctorEndpoint, AppointmentEndpoint, PatientEndpoint
 from drchrono.models import Appointment, Patient, Doctor
 from drchrono.serializers import AppointmentSerializer, retrieveAppointmentSerializer
-from drchrono.forms import check_form, patient_info_form
+from drchrono.forms import checkin_form, patient_info_form
 
 from drchrono.sync import synchron_all_data
 
@@ -47,7 +47,7 @@ def index(request):
 
     context = {}
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    # today = datetime.strptime("2019-11-24", "%Y-%m-%d")
+    today = datetime.strptime("2019-11-27", "%Y-%m-%d")
     tomorrow = today + timedelta(days=1)
     # print today, tomorrow
 
@@ -75,10 +75,10 @@ def index(request):
 @login_required(login_url='/login')
 def checkin(request):
 
-    form = check_form(request.POST or None)
+    form = checkin_form(request.POST or None)
     if form.is_valid():
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        # today = datetime.strptime("2019-11-24", "%Y-%m-%d")
+        today = datetime.strptime("2019-11-27", "%Y-%m-%d")
         tomorrow = today + timedelta(days=1)
 
         # print form
@@ -94,12 +94,12 @@ def checkin(request):
             patient = Patient.objects.get(**filters)
         except Patient.DoesNotExist:
             res = {}
-            res['check_form'] = form
+            res['checkin_form'] = form
             res['message'] = 'No Patient found'
             return render(request, 'checkin.html', res)
         except Patient.MultipleObjectsReturned:
             res = {}
-            res['check_form'] = form
+            res['checkin_form'] = form
             res['message'] = 'Multiple Account found'
             return render(request, 'checkin.html', res)
             
@@ -115,7 +115,7 @@ def checkin(request):
     # for i in check_form.base_fields:
     #     print i
 
-    return render(request, "checkin.html", {'check_form': form})
+    return render(request, "checkin.html", {'checkin_form': form})
 
 
 @login_required(login_url='/login')
@@ -131,21 +131,26 @@ def comfirmcheckin(request):
         access_token = oauth_provider.extra_data['access_token']
         endpoint = AppointmentEndpoint(access_token)
 
-        res = endpoint.update("123", {'status': 'Arrived'})
-        if res['detail'] == 'Not found.':
-            print "Test"
+        res = endpoint.update(appointment_id, {'status': 'Arrived'})
+        if res:
             message = 'Sorry, fail to check in.'
             return HttpResponse(message, status=403) 
 
-        params = {'status': 'Arrived', 'checkin_time' : now()}
-        Appointment.objects.filter(id=appointment_id).update(**params)
-        
-        # api_data = endpoint.fetch(id=appointment_id)
 
-        # serializer = AppointmentSerializer(data=api_data)
-        # if serializer.is_valid():
-        #     serializer.save()
-        #     serializer.instance.check_in() 
+        api_data = endpoint.fetch(id=appointment_id)
+        serializer = AppointmentSerializer(data=api_data)
+    
+        if serializer.is_valid():
+            # print serializer.data
+            # print serializer.data
+            model = Appointment.objects.get(pk=serializer.validated_data['id'])
+            serializer.update(model, serializer.validated_data)
+
+        
+
+        params = {'checkin_time' : now()}
+        Appointment.objects.filter(pk=appointment_id).update(**params)
+        
         message = 'Successfully check in.'
         return HttpResponse(message, status=200)
     
@@ -164,16 +169,23 @@ def startAppointments(request, appointment):
     access_token = oauth_provider.extra_data['access_token']
     endpoint = AppointmentEndpoint(access_token)
     endpoint.update(appointment_id, {'status':status})
-    # api_data = endpoint.fetch(id=appointment_id)
+    api_data = endpoint.fetch(id=appointment_id)
 
-    # serializer = AppointmentSerializer(data=api_data)
-    # if serializer.is_valid():
-    #     serializer.save()
-    app = Appointment.objects.filter(id=appointment_id).values('checkin_time')
+    serializer = AppointmentSerializer(data=api_data)
+    
+    if serializer.is_valid():
+        # print serializer.data
+        # print serializer.data
+        model = Appointment.objects.get(pk=serializer.validated_data['id'])
+        serializer.update(model, serializer.validated_data)
+        #
+
+
+    app = Appointment.objects.filter(pk=appointment_id).values('checkin_time')
     checkin_time = app[0]['checkin_time'] if app[0]['checkin_time'] != None else now()
 
-    params = {'status' : status, 'start_appointment_time': now(), 'waiting_time' : round((now() - checkin_time).total_seconds()/60) }
-    Appointment.objects.filter(id=appointment_id).update(**params)
+    params = {'start_appointment_time': now(), 'waiting_time' : round((now() - checkin_time).total_seconds()/60) }
+    Appointment.objects.filter(pk=appointment_id).update(**params)
 
         # waiting = (now - app_check_time[0]['checkin_time']).to_seconds()/60
         # Appointment.objects.filter(id=appointment_id).update(waiting_time=waiting, start_appointment_time=now)
@@ -189,13 +201,14 @@ def finishAppointments(request, appointment):
     access_token = oauth_provider.extra_data['access_token']
     endpoint = AppointmentEndpoint(access_token)
     endpoint.update(appointment_id, {'status':status})
-    # api_data = endpoint.fetch(id=appointment_id)
+    api_data = endpoint.fetch(id=appointment_id)
 
-    # serializer = AppointmentSerializer(data=api_data)
-    # if serializer.is_valid():
-    #     serializer.save()
-    params = {'status' : status}
-    Appointment.objects.filter(id=appointment_id).update(**params)
+    serializer = AppointmentSerializer(data=api_data)
+    if serializer.is_valid():
+        model = Appointment.objects.get(pk=serializer.validated_data['id'])
+        serializer.update(model, serializer.validated_data)
+
+    # Appointment.objects.filter(pk=appointment_id).update(**params)
 
     return redirect('index')
     
@@ -213,9 +226,10 @@ def cancelAppointments(request, appointment):
 
     serializer = AppointmentSerializer(data=api_data)
     if serializer.is_valid():
-        serializer.save()
+        model = Appointment.objects.get(pk=serializer.validated_data['id'])
+        serializer.update(model, serializer.validated_data)
 
-        return redirect('index')
+    return redirect('index')
 
 
 @login_required(login_url='/login')
@@ -225,25 +239,27 @@ def update_patient_info(request, patient):
     oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
     access_token = oauth_provider.extra_data['access_token']
 
-    form = patient_info_form(request.POST or None)
+    patient = Patient.objects.filter(pk=patient_id).values()[0]
+    endpoint = PatientEndpoint(access_token)
+    api = endpoint.fetch(id=patient_id)
+
+    if request.POST:
+        form = patient_info_form(request.POST)
+    else:
+        form = patient_info_form(initial=api)
+
     if form.is_valid():
 
         params = {}
         for field in form.cleaned_data:
-            if form.cleaned_data[field] != "":
+            if form.cleaned_data[field] != "" and form.cleaned_data[field] != None:
                 params[field] = form.cleaned_data[field]
 
         print params
-        endpoint = PatientEndpoint(access_token)
         endpoint.update(patient_id, params)
-        api_data = endpoint.fetch(id=patient_id)
-        print api_data
 
         return redirect('index')
     
-    patient = Patient.objects.filter(id=patient_id).values()[0];
-
-    form = patient_info_form(initial=patient)
     return render(request, 'patient_info.html', {'form' : form, 'patient' : patient })
 
 
@@ -255,17 +271,22 @@ def logout(request):
 
 @login_required(login_url='/login')
 def test1(request):
-    queryset = Appointment.objects.all()
+    oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
+    access_token = oauth_provider.extra_data['access_token']
 
-    serializer_class = retrieveAppointmentSerializer(queryset, many=True)
-    content = serializer_class.data
-    print content
-    return HttpResponse('')
+    endpoint = PatientEndpoint(access_token)
+    print next(endpoint.list())
+    # queryset = Appointment.objects.all()
+
+    # serializer_class = retrieveAppointmentSerializer(queryset, many=True)
+    # content = serializer_class.data
+    # print content
+    return render(request, 'debug.html', {'data': next(endpoint.list())})
 
 @login_required(login_url='/login')
 def test(request):
     
-    appointment_id = "134913638"
+    appointment_id = "134913622"
     oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
     access_token = oauth_provider.extra_data['access_token']
     endpoint = AppointmentEndpoint(access_token)
