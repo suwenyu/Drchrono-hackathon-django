@@ -14,7 +14,7 @@
         <form action="{% url 'checkin' %}" method="post">
             {% csrf_token %}
 
-            {% for field in check_form %}
+            {% for field in checkin_form %}
                 
                 <div class="form-group col-md-6 offset-md-3">
                     

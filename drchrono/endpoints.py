@@ -78,6 +78,8 @@ class BaseEndpoint(object):
                 return response.json()
         else:
             exe = ERROR_CODES.get(response.status_code, APIException)
+            # change the return value, we can control in views
+            return response.json()
             raise exe(response.content)
 
     def _request(self, method, *args, **kwargs):

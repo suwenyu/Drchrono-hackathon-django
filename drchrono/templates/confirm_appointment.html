@@ -76,9 +76,9 @@
                 $('#exampleModalLabel').text(result);
                 $('#exampleModal').modal('show');
                 // alert('ok');
-                // var timer = setTimeout(function() {
-                //     window.location="{% url 'index' %}"
-                // }, 3000);
+                var timer = setTimeout(function() {
+                    window.location="{% url 'index' %}"
+                }, 3000);
             },
             error: function(result) {
               console.log(result);

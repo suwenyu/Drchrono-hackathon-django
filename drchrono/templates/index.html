@@ -30,7 +30,7 @@
                 <br>
                 Exam Room Number : {{ appointment.exam_room }}
                 <br>
-                {% if appointment.waiting_time %}
+                {% if appointment.waiting_time != None %}
                 Waiting Time : {{ appointment.waiting_time }} mins
                 {% endif %}
             </div>
@@ -51,9 +51,10 @@
         <h5>No appointments today.</h5>
     {% endfor %}
     
-
+    {% if wait_time %}
     <p>Average Wait time: {{ wait_time }} minutes</p>
-    <a class="btn btn-default" href="{% url 'init' %}">Update From Web</a>
+    {% endif %}
+
 {% endblock %}
 
 

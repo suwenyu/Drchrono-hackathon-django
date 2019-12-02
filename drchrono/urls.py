@@ -6,7 +6,6 @@ admin.autodiscover()
 
 import views
 
-
 urlpatterns = [
 	url(r'^init/$', views.synchron_db, name='init'),
 	url(r'^index/$', views.index, name='index'),
