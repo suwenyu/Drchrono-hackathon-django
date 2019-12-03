@@ -47,7 +47,7 @@ def index(request):
 
     context = {}
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    today = datetime.strptime("2019-11-27", "%Y-%m-%d")
+    # today = datetime.strptime("2019-11-27", "%Y-%m-%d")
     tomorrow = today + timedelta(days=1)
     # print today, tomorrow
 
@@ -78,7 +78,7 @@ def checkin(request):
     form = checkin_form(request.POST or None)
     if form.is_valid():
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        today = datetime.strptime("2019-11-27", "%Y-%m-%d")
+        # today = datetime.strptime("2019-11-27", "%Y-%m-%d")
         tomorrow = today + timedelta(days=1)
 
         # print form

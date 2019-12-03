@@ -13,8 +13,8 @@ class synchron_data():
     def __init__(self):
         oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
         self.access_token = oauth_provider.extra_data['access_token']
-        # self.today = now()
-        self.today = datetime.strptime("2019-11-26", "%Y-%m-%d")
+        self.today = now()
+        # self.today = datetime.strptime("2019-11-26", "%Y-%m-%d")
         self.two_days_ago = self.today - timedelta(days=1)
         self.two_days_after = self.today + timedelta(days=1)
 
