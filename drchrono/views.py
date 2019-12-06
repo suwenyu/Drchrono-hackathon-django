@@ -13,6 +13,7 @@ from drchrono.endpoints import DoctorEndpoint, AppointmentEndpoint, PatientEndpo
 from drchrono.models import Appointment, Patient, Doctor
 from drchrono.serializers import AppointmentSerializer, retrieveAppointmentSerializer
 from drchrono.forms import checkin_form, patient_info_form
+from django.views.generic.edit import FormView
 
 from drchrono.sync import synchron_all_data
 
@@ -20,6 +21,14 @@ from datetime import datetime, timedelta
 from django.utils.timezone import now
 
 from django.db import models
+
+from rest_framework import permissions, renderers, viewsets
+from rest_framework.decorators import action
+from rest_framework import generics
+from rest_framework.renderers import JSONRenderer, TemplateHTMLRenderer
+from rest_framework.response import Response
+from rest_framework.authentication import SessionAuthentication, BasicAuthentication
+from rest_framework.permissions import IsAuthenticated
 
 def login(request):
     if request.user.is_authenticated():
@@ -29,54 +38,26 @@ def login(request):
 
 
 @login_required(login_url='/login')
+def logout(request):
+    django_logout(request)
+    return redirect('login')
+
+
+@login_required(login_url='/login')
 def synchron_db(request):
     synchron_all_data()
-    print "Sync everything, then redirect back to the today screen"
     return redirect('index')
 
 
-@login_required(login_url='/login')
-def index(request):
 
-    oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
-    access_token = oauth_provider.extra_data['access_token']
+class PatientCheckIn(FormView):
+    authentication_classes = [SessionAuthentication, BasicAuthentication]
+    permission_classes = [IsAuthenticated]
 
-    api = DoctorEndpoint(access_token)
-    doctor = next(api.list())
-    request.session['doctor'] = doctor['id']
+    template_name = 'checkin.html'
+    form_class = checkin_form
 
-    context = {}
-    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    # today = datetime.strptime("2019-11-27", "%Y-%m-%d")
-    tomorrow = today + timedelta(days=1)
-    # print today, tomorrow
-
-    queryset = Appointment.objects.filter(
-        scheduled_time__gte=today,
-        scheduled_time__lte=tomorrow,
-        doctor=doctor['id']
-    ).order_by('scheduled_time')
-
-    serializer_class = retrieveAppointmentSerializer(queryset, many=True)
-    context['appointments'] = serializer_class.data
-
-    wait_time = Appointment.objects.filter(
-        scheduled_time__gte=today,
-        scheduled_time__lte=tomorrow,
-        doctor=doctor['id'],
-        waiting_time__isnull=False
-    ).aggregate(models.Avg('waiting_time'))['waiting_time__avg']
-    context['wait_time'] = wait_time
-
-    context['current_time'] = now()
-
-    return render(request, 'index.html', context)
-        
-@login_required(login_url='/login')
-def checkin(request):
-
-    form = checkin_form(request.POST or None)
-    if form.is_valid():
+    def form_valid(self, form):
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         # today = datetime.strptime("2019-11-27", "%Y-%m-%d")
         tomorrow = today + timedelta(days=1)
@@ -94,183 +75,85 @@ def checkin(request):
             patient = Patient.objects.get(**filters)
         except Patient.DoesNotExist:
             res = {}
-            res['checkin_form'] = form
+            res['form'] = form
             res['message'] = 'No Patient found'
-            return render(request, 'checkin.html', res)
+            return render(self.request, 'checkin.html', res)
+
         except Patient.MultipleObjectsReturned:
             res = {}
-            res['checkin_form'] = form
+            res['form'] = form
             res['message'] = 'Multiple Account found'
-            return render(request, 'checkin.html', res)
+            return render(self.request, 'checkin.html', res)
             
         patient = Patient.objects.filter(**filters).values()
         appointments = Appointment.objects.filter(
-            doctor=request.session['doctor'],
+            doctor=self.request.session['doctor'],
             patient=patient[0]['id'], 
             scheduled_time__gte=today, 
             scheduled_time__lte=tomorrow
         ).order_by('scheduled_time').values()
 
-        return render(request, 'confirm_appointment.html', {"appointments": appointments, "patient":patient[0]})
-    # for i in check_form.base_fields:
-    #     print i
+        return render(self.request, 'confirm_appointment.html', {"appointments": appointments, "patient":patient[0]})
 
-    return render(request, "checkin.html", {'checkin_form': form})
+    def form_invalid(self, form):
+        return render(self.request, "checkin.html", {'form': form})
 
+class PatientUpdateInfo(FormView):
+    authentication_classes = [SessionAuthentication, BasicAuthentication]
+    permission_classes = [IsAuthenticated]
 
-@login_required(login_url='/login')
-def comfirmcheckin(request):
-    
-    if request.method == 'POST':
+    template_name = 'patient_info.html'
+    form_class = patient_info_form
 
-        appointment_id = request.POST.get('appointment', None)
-        # appointment_id = request.GET.get('appointment', None)
-        # print appointment_id
+    def get_form_kwargs(self):
+        kwargs = super(PatientUpdateInfo, self).get_form_kwargs()
+        patient_id = self.kwargs['patient']
 
         oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
         access_token = oauth_provider.extra_data['access_token']
-        endpoint = AppointmentEndpoint(access_token)
 
-        res = endpoint.update(appointment_id, {'status': 'Arrived'})
-        if res:
-            message = 'Sorry, fail to check in.'
-            return HttpResponse(message, status=403) 
-
-
-        api_data = endpoint.fetch(id=appointment_id)
-        serializer = AppointmentSerializer(data=api_data)
-    
-        if serializer.is_valid():
-            # print serializer.data
-            # print serializer.data
-            model = Appointment.objects.get(pk=serializer.validated_data['id'])
-            serializer.update(model, serializer.validated_data)
-
+        api_data = PatientEndpoint(access_token).fetch(id=patient_id)
         
+        kwargs.update({'initial': api_data})
+        # print kwargs
+        return kwargs
 
-        params = {'checkin_time' : now()}
-        Appointment.objects.filter(pk=appointment_id).update(**params)
-        
-        message = 'Successfully check in.'
-        return HttpResponse(message, status=200)
-    
-    # return render(request, 'checkin_success.html')
+    def get(self, request, *args, **kwargs):
+        form_class = self.get_form_class()
+        form = self.get_form(form_class)
+        context = self.get_context_data(**kwargs)
+        context['form'] = form
 
-    message = 'Sorry, fail to check in.'
-    return HttpResponse(message, status=403)
+        patient = Patient.objects.filter(id=self.kwargs['patient']).values()[0]
+        context['patient'] = patient
 
-
-@login_required(login_url='/login')
-def startAppointments(request, appointment):
-    appointment_id = appointment
-    status = 'In Session'
-    
-    oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
-    access_token = oauth_provider.extra_data['access_token']
-    endpoint = AppointmentEndpoint(access_token)
-    endpoint.update(appointment_id, {'status':status})
-    api_data = endpoint.fetch(id=appointment_id)
-
-    serializer = AppointmentSerializer(data=api_data)
-    
-    if serializer.is_valid():
-        # print serializer.data
-        # print serializer.data
-        model = Appointment.objects.get(pk=serializer.validated_data['id'])
-        serializer.update(model, serializer.validated_data)
-        #
-
-
-    app = Appointment.objects.filter(pk=appointment_id).values('checkin_time')
-    checkin_time = app[0]['checkin_time'] if app[0]['checkin_time'] != None else now()
-
-    params = {'start_appointment_time': now(), 'waiting_time' : round((now() - checkin_time).total_seconds()/60) }
-    Appointment.objects.filter(pk=appointment_id).update(**params)
-
-        # waiting = (now - app_check_time[0]['checkin_time']).to_seconds()/60
-        # Appointment.objects.filter(id=appointment_id).update(waiting_time=waiting, start_appointment_time=now)
-
-    return redirect('index')
-
-@login_required(login_url='/login')
-def finishAppointments(request, appointment):
-    appointment_id = appointment
-    status = 'Complete'
-    
-    oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
-    access_token = oauth_provider.extra_data['access_token']
-    endpoint = AppointmentEndpoint(access_token)
-    endpoint.update(appointment_id, {'status':status})
-    api_data = endpoint.fetch(id=appointment_id)
-
-    serializer = AppointmentSerializer(data=api_data)
-    if serializer.is_valid():
-        model = Appointment.objects.get(pk=serializer.validated_data['id'])
-        serializer.update(model, serializer.validated_data)
-
-    # Appointment.objects.filter(pk=appointment_id).update(**params)
-
-    return redirect('index')
+        return render(request, 'patient_info.html', context)
     
 
-@login_required(login_url='/login')
-def cancelAppointments(request, appointment):
-    appointment_id = appointment
-    status = 'Cancelled'
-    
-    oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
-    access_token = oauth_provider.extra_data['access_token']
-    endpoint = AppointmentEndpoint(access_token)
-    endpoint.update(appointment_id, {'status':status})
-    api_data = endpoint.fetch(id=appointment_id)
+    def form_invalid(self, form):
+        patient = Patient.objects.filter(id=self.kwargs['patient']).values()[0]
+        return render(self.request, 'patient_info.html', {'form' : form, 'patient' : patient })
 
-    serializer = AppointmentSerializer(data=api_data)
-    if serializer.is_valid():
-        model = Appointment.objects.get(pk=serializer.validated_data['id'])
-        serializer.update(model, serializer.validated_data)
-
-    return redirect('index')
-
-
-@login_required(login_url='/login')
-def update_patient_info(request, patient):
-    patient_id = patient
-
-    oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
-    access_token = oauth_provider.extra_data['access_token']
-
-    patient = Patient.objects.filter(pk=patient_id).values()[0]
-    endpoint = PatientEndpoint(access_token)
-    api = endpoint.fetch(id=patient_id)
-
-    if request.POST:
-        form = patient_info_form(request.POST)
-    else:
-        form = patient_info_form(initial=api)
-
-    if form.is_valid():
+    def form_valid(self, form):
+        oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
+        access_token = oauth_provider.extra_data['access_token']
+        endpoint = PatientEndpoint(access_token)
 
         params = {}
         for field in form.cleaned_data:
             if form.cleaned_data[field] != "" and form.cleaned_data[field] != None:
                 params[field] = form.cleaned_data[field]
 
-        print params
-        endpoint.update(patient_id, params)
+        endpoint.update(self.kwargs['patient'], params)
 
         return redirect('index')
-    
-    return render(request, 'patient_info.html', {'form' : form, 'patient' : patient })
 
 
-@login_required(login_url='/login')
-def logout(request):
-    django_logout(request)
-    return redirect('login')
+
 
 
 @login_required(login_url='/login')
-def test1(request):
+def debug(request):
     oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
     access_token = oauth_provider.extra_data['access_token']
 
@@ -283,90 +166,136 @@ def test1(request):
     # print content
     return render(request, 'debug.html', {'data': next(endpoint.list())})
 
-@login_required(login_url='/login')
-def test(request):
-    
-    appointment_id = "134913622"
-    oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
-    access_token = oauth_provider.extra_data['access_token']
-    endpoint = AppointmentEndpoint(access_token)
-    endpoint.update(appointment_id, {'status': "Arrived"})
-    api_data = endpoint.fetch(id=appointment_id)
-    print api_data
 
-    return render(request, 'doctor_welcome.html', {"appointments": api_data })
+class IndexViewSet(generics.ListAPIView):
+    authentication_classes = [SessionAuthentication, BasicAuthentication]
+    permission_classes = [IsAuthenticated]
 
+    # serializer_class = retrieveAppointmentSerializer1
+    renderer_classes = [TemplateHTMLRenderer]
 
-# class SetupView(TemplateView):
-#     """
-#     The beginning of the OAuth sign-in flow. Logs a user into the kiosk, and saves the token.
-#     """
-#     template_name = 'kiosk_setup.html'
+    def list(self, request):
+        oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
+        access_token = oauth_provider.extra_data['access_token']
 
 
-# class DoctorWelcome(TemplateView):
-#     """
-#     The doctor can see what appointments they have today.
-#     """
-#     template_name = 'doctor_welcome.html'
+        api = DoctorEndpoint(access_token)
+        doctor = next(api.list())
+        request.session['doctor'] = doctor['id']
 
-#     def get_token(self):
-#         """
-#         Social Auth module is configured to store our access tokens. This dark magic will fetch it for us if we've
-#         already signed in.
-#         """
-#         oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
-#         access_token = oauth_provider.extra_data['access_token']
-#         return access_token
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        # today = datetime.strptime("2019-11-27", "%Y-%m-%d")
+        tomorrow = today + timedelta(days=1)
 
-#     def make_api_request(self):
-#         """
-#         Use the token we have stored in the DB to make an API request and get doctor details. If this succeeds, we've
-#         proved that the OAuth setup is working
-#         """
-#         # We can create an instance of an endpoint resource class, and use it to fetch details
-#         access_token = self.get_token()
-#         api = DoctorEndpoint(access_token)
-#         # Grab the first doctor from the list; normally this would be the whole practice group, but your hackathon
-#         # account probably only has one doctor in it.
-#         return next(api.list())
+        queryset = Appointment.objects.filter(
+            scheduled_time__gte=today,
+            scheduled_time__lte=tomorrow,
+            doctor=doctor['id']
+        ).order_by('scheduled_time')
+        serializer = retrieveAppointmentSerializer(queryset, many=True)
 
-#     def get_context_data(self, **kwargs):
-#         kwargs = super(DoctorWelcome, self).get_context_data(**kwargs)
-#         # Hit the API using one of the endpoints just to prove that we can
-#         # If this works, then your oAuth setup is working correctly.
-#         doctor_details = self.make_api_request()
-#         kwargs['doctor'] = doctor_details
-#         return kwargs
+        wait_time = Appointment.objects.filter(
+            scheduled_time__gte=today,
+            scheduled_time__lte=tomorrow,
+            doctor=doctor['id'],
+            waiting_time__isnull=False
+        ).aggregate(models.Avg('waiting_time'))['waiting_time__avg']
 
-# class TestAppointment(TemplateView):
-#     template_name = 'test_appointments.html'
+        return Response({'appointments': serializer.data, 'wait_time' : wait_time, 'current_time':now()}, template_name='index.html')
 
-#     def get_token(self):
-#         """
-#         Social Auth module is configured to store our access tokens. This dark magic will fetch it for us if we've
-#         already signed in.
-#         """
-#         oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
-#         access_token = oauth_provider.extra_data['access_token']
-#         return access_token
 
-#     def make_api_request(self):
-#         """
-#         Use the token we have stored in the DB to make an API request and get doctor details. If this succeeds, we've
-#         proved that the OAuth setup is working
-#         """
-#         # We can create an instance of an endpoint resource class, and use it to fetch details
-#         access_token = self.get_token()
-#         api = AppointmentEndpoint(access_token)
-#         # Grab the first doctor from the list; normally this would be the whole practice group, but your hackathon
-#         # account probably only has one doctor in it.
-#         return next(api.list(date="2019-11-22"))
+class AppointmentViewSet(viewsets.ModelViewSet):
+    authentication_classes = [SessionAuthentication, BasicAuthentication]
+    permission_classes = [IsAuthenticated]
 
-#     def get_context_data(self, **kwargs):
-#         kwargs = super(TestAppointment, self).get_context_data(**kwargs)
-#         # Hit the API using one of the endpoints just to prove that we can
-#         # If this works, then your oAuth setup is working correctly.
-#         appointments_details = self.make_api_request()
-#         kwargs['appointments'] = appointments_details
-#         return kwargs
+    queryset = Appointment.objects.all()
+    serializer_class = AppointmentSerializer
+
+    @action(methods=['post'], detail=False, url_name='confirm')
+    def confirm(self, request):
+        # print pk
+        pk = request.POST.get('pk', None)
+
+        oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
+        access_token = oauth_provider.extra_data['access_token']
+        endpoint = AppointmentEndpoint(access_token)
+
+        res = endpoint.update(pk, {'status': 'Arrived'})
+        api_data = endpoint.fetch(id=pk)
+        # print api_data
+
+        try:
+            model = Appointment.objects.get(pk=pk)
+            serializer = AppointmentSerializer(model, data=api_data)
+        except appointment.DoesNotExist:
+            serializer = AppointmentSerializer(data=api_data)
+
+        if serializer.is_valid():
+            serializer.save()
+
+            message = 'Successfully check in.'
+            return HttpResponse(message, status=200)
+
+        message = 'Sorry, fail to check in.'
+        return HttpResponse(message, status=403)
+
+    @action(methods=['get'], detail=True, url_name='startappointment')
+    def startappointment(self, request, pk=None):
+        oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
+        access_token = oauth_provider.extra_data['access_token']
+        endpoint = AppointmentEndpoint(access_token)
+
+        endpoint.update(pk, {'status':'In Session'})
+        api_data = endpoint.fetch(id=pk)
+
+        try:
+            model = Appointment.objects.get(pk=pk)
+            serializer = AppointmentSerializer(model, data=api_data)
+        except appointment.DoesNotExist:
+            serializer = AppointmentSerializer(data=api_data)
+
+        if serializer.is_valid():
+            serializer.save()
+
+        return redirect('index')
+
+    @action(methods=['get'], detail=True, url_name='endappointment')
+    def endappointment(self, request, pk=None):
+        oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
+        access_token = oauth_provider.extra_data['access_token']
+        endpoint = AppointmentEndpoint(access_token)
+
+        endpoint.update(pk, {'status':'Complete'})
+        api_data = endpoint.fetch(id=pk)
+
+        try:
+            model = Appointment.objects.get(pk=pk)
+            serializer = AppointmentSerializer(model, data=api_data)
+        except appointment.DoesNotExist:
+            serializer = AppointmentSerializer(data=api_data)
+
+        if serializer.is_valid():
+            serializer.save()
+
+        return redirect('index')
+
+    @action(methods=['get'], detail=True, url_name='cancelappointment')
+    def cancelappointment(self, request, pk=None):
+        oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
+        access_token = oauth_provider.extra_data['access_token']
+        endpoint = AppointmentEndpoint(access_token)
+
+        endpoint.update(pk, {'status':'Cancelled'})
+        api_data = endpoint.fetch(id=pk)
+
+        try:
+            model = Appointment.objects.get(pk=pk)
+            serializer = AppointmentSerializer(model, data=api_data)
+        except appointment.DoesNotExist:
+            serializer = AppointmentSerializer(data=api_data)
+
+        if serializer.is_valid():
+            serializer.save()
+
+        return redirect('index')
+

@@ -1,6 +1,7 @@
 from drchrono.endpoints import DoctorEndpoint, PatientEndpoint, AppointmentEndpoint
 from drchrono.models import Doctor, Patient, Appointment
 # from drchrono.serializers import DoctorSerializer1, PatientSerializer1, AppointmentSerializer1
+# , PatientSerializer1, AppointmentSerializer1
 from drchrono.serializers import DoctorSerializer, PatientSerializer, AppointmentSerializer
 
 from social_django.models import UserSocialAuth
@@ -48,24 +49,16 @@ class synchron_data():
             # print "test"
 
             data = dict(data)
-            # if type_name == 'appointment':
-            #     print type_name, data['doctor'], data['id'], data['patient']
-
-            # print data
-            serializer = Serializer(data=data)
-
-            if serializer.is_valid():
-
-                try:
-                    # print serializer.validated_data
-                    model = Model.objects.get(id=serializer.validated_data['id'])
-                    serializer.update(model, serializer.validated_data)
+            try:
+                model = Model.objects.get(id=data['id'])
+                serializer = Serializer(model, data=data)
                 
-                except Model.DoesNotExist:
-                    serializer.create(serializer.validated_data)
+            except Model.DoesNotExist:
+                serializer = Serializer(data=data)
+            
+            if serializer.is_valid():
+                serializer.save()
 
-            else:
-                print data
 
     
 def synchron_all_data():

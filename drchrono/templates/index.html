@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block title %} DrChrono Kiosk {% endblock %}
- {% block extra_header %}<meta http-equiv="refresh" content="5" >{% endblock %} 
+
 {% block body %}
     <div class="container w-50">
 
@@ -38,13 +38,13 @@
             </div>
 
             {% if appointment.status == "Arrived" %}
-            <a class="btn btn-outline-success" href="{% url 'startappointment' appointment=appointment.id %}">Start</a>
+            <a class="btn btn-outline-success" href="{% url 'appointment-startappointment' pk=appointment.id %}">Start</a>
             {% endif %}
             {% if appointment.status == "In Session" %}
-            <a class="btn btn-outline-warning" href="{% url 'finishappointment' appointment=appointment.id %}">Finish</a>
+            <a class="btn btn-outline-warning" href="{% url 'appointment-endappointment' pk=appointment.id %}">Finish</a>
             {% endif %}
             {% if appointment.status != "In Session" and appointment.status != "Complete" and appointment.status != "Cancelled" %}
-            <a class="btn btn-outline-danger" href="{% url 'cancelappointment' appointment=appointment.id %}">Cancel</a>
+            <a class="btn btn-outline-danger" href="{% url 'appointment-cancelappointment' pk=appointment.id %}">Cancel</a>
             {% endif %}
       </div>
     </div>
@@ -60,3 +60,4 @@
     </div>
 {% endblock %}
 
+{#  {% block extra_header %}<meta http-equiv="refresh" content="5" >{% endblock %} #}

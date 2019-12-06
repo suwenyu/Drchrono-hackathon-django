@@ -45,7 +45,7 @@
   </tbody>
 </table>
 
-<a href="{% url 'update_patient_info' patient=patient.id %}" class="btn btn-primary">Update Demographic Information</a>
+<a href="{% url 'patientinfo_upd' patient=patient.id %}" class="btn btn-primary">Update Demographic Information</a>
 </div>
 
 <!-- Modal -->
@@ -67,9 +67,9 @@
         console.log($(this).val());
         $.ajax({
             type: "POST",
-            url: "{% url 'comfirmcheckin' %}",
+            url: "{% url 'appointment-confirm' %}",
             data: {
-                "appointment": $(this).val()
+                "pk": $(this).val()
             },
             success: function(result) {
                 // console.log(result);

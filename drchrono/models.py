@@ -7,8 +7,8 @@ from django.utils.timezone import now
 
 class Doctor(models.Model):
     id = models.IntegerField(primary_key=True)
-    first_name = models.CharField(editable=False, max_length=255)
-    last_name = models.CharField(editable=False, max_length=255)
+    first_name = models.CharField(max_length=255)
+    last_name = models.CharField(max_length=255)
 
     def __str__(self):
         return "%s %s" % (self.first_name, self.last_name)
@@ -16,8 +16,9 @@ class Doctor(models.Model):
 
 class Patient(models.Model):
     id = models.IntegerField(primary_key=True)
-    first_name = models.CharField(editable=False, max_length=255)
-    last_name = models.CharField(editable=False, max_length=255)
+    first_name = models.CharField(max_length=255)
+    last_name = models.CharField(max_length=255)
+    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE)
     social_security_number = models.CharField(max_length=20, null=True)
 
     def __str__(self):
@@ -25,12 +26,12 @@ class Patient(models.Model):
 
 
 class Appointment(models.Model):
-    id = models.IntegerField(primary_key=True)
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, editable=False)  # Breaks have a null patient field
-    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE, editable=False)
-    status = models.CharField(max_length=255, null=True)
-    scheduled_time = models.DateTimeField(editable=False)
-    duration = models.IntegerField(editable=False)
+    id = models.CharField(primary_key=True, max_length=255)
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
+    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE)
+    status = models.CharField(max_length=255, null=True, blank=True)
+    scheduled_time = models.DateTimeField()
+    duration = models.IntegerField()
     exam_room = models.IntegerField()
 
     scheduled_end_time = models.DateTimeField(null=True)
@@ -38,4 +39,5 @@ class Appointment(models.Model):
     waiting_time = models.IntegerField(null=True)
     start_appointment_time = models.DateTimeField(null=True)
 
-
+    # def __str__(self):
+    #     return "ID: %d, Patient: %s, Doctor: %s" %(self.id, self.patient, self.doctor)
