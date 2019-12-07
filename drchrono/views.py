@@ -49,6 +49,42 @@ def synchron_db(request):
     return redirect('index')
 
 
+class IndexViewSet(generics.ListAPIView):
+    authentication_classes = [SessionAuthentication, BasicAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    # serializer_class = retrieveAppointmentSerializer1
+    renderer_classes = [TemplateHTMLRenderer]
+
+    def list(self, request):
+        oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
+        access_token = oauth_provider.extra_data['access_token']
+
+
+        api = DoctorEndpoint(access_token)
+        doctor = next(api.list())
+        request.session['doctor'] = doctor['id']
+
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        # today = datetime.strptime("2019-11-27", "%Y-%m-%d")
+        tomorrow = today + timedelta(days=1)
+
+        queryset = Appointment.objects.filter(
+            scheduled_time__gte=today,
+            scheduled_time__lte=tomorrow,
+            doctor=doctor['id']
+        ).order_by('scheduled_time')
+        serializer = retrieveAppointmentSerializer(queryset, many=True)
+
+        wait_time = Appointment.objects.filter(
+            scheduled_time__gte=today,
+            scheduled_time__lte=tomorrow,
+            doctor=doctor['id'],
+            waiting_time__isnull=False
+        ).aggregate(models.Avg('waiting_time'))['waiting_time__avg']
+
+        return Response({'appointments': serializer.data, 'wait_time' : wait_time, 'current_time':now()}, template_name='index.html')
+
 
 class PatientCheckIn(FormView):
     authentication_classes = [SessionAuthentication, BasicAuthentication]
@@ -149,61 +185,6 @@ class PatientUpdateInfo(FormView):
         return redirect('index')
 
 
-
-
-
-@login_required(login_url='/login')
-def debug(request):
-    oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
-    access_token = oauth_provider.extra_data['access_token']
-
-    endpoint = PatientEndpoint(access_token)
-    print next(endpoint.list())
-    # queryset = Appointment.objects.all()
-
-    # serializer_class = retrieveAppointmentSerializer(queryset, many=True)
-    # content = serializer_class.data
-    # print content
-    return render(request, 'debug.html', {'data': next(endpoint.list())})
-
-
-class IndexViewSet(generics.ListAPIView):
-    authentication_classes = [SessionAuthentication, BasicAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    # serializer_class = retrieveAppointmentSerializer1
-    renderer_classes = [TemplateHTMLRenderer]
-
-    def list(self, request):
-        oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
-        access_token = oauth_provider.extra_data['access_token']
-
-
-        api = DoctorEndpoint(access_token)
-        doctor = next(api.list())
-        request.session['doctor'] = doctor['id']
-
-        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        # today = datetime.strptime("2019-11-27", "%Y-%m-%d")
-        tomorrow = today + timedelta(days=1)
-
-        queryset = Appointment.objects.filter(
-            scheduled_time__gte=today,
-            scheduled_time__lte=tomorrow,
-            doctor=doctor['id']
-        ).order_by('scheduled_time')
-        serializer = retrieveAppointmentSerializer(queryset, many=True)
-
-        wait_time = Appointment.objects.filter(
-            scheduled_time__gte=today,
-            scheduled_time__lte=tomorrow,
-            doctor=doctor['id'],
-            waiting_time__isnull=False
-        ).aggregate(models.Avg('waiting_time'))['waiting_time__avg']
-
-        return Response({'appointments': serializer.data, 'wait_time' : wait_time, 'current_time':now()}, template_name='index.html')
-
-
 class AppointmentViewSet(viewsets.ModelViewSet):
     authentication_classes = [SessionAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
@@ -222,12 +203,11 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
         res = endpoint.update(pk, {'status': 'Arrived'})
         api_data = endpoint.fetch(id=pk)
-        # print api_data
 
         try:
             model = Appointment.objects.get(pk=pk)
             serializer = AppointmentSerializer(model, data=api_data)
-        except appointment.DoesNotExist:
+        except Appointment.DoesNotExist:
             serializer = AppointmentSerializer(data=api_data)
 
         if serializer.is_valid():
@@ -298,4 +278,24 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             serializer.save()
 
         return redirect('index')
+
+
+@login_required(login_url='/login')
+def debug(request):
+    oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
+    access_token = oauth_provider.extra_data['access_token']
+
+    endpoint = PatientEndpoint(access_token)
+    print next(endpoint.list())
+    # queryset = Appointment.objects.all()
+
+    # serializer_class = retrieveAppointmentSerializer(queryset, many=True)
+    # content = serializer_class.data
+    # print content
+    return render(request, 'debug.html', {'data': next(endpoint.list())})
+
+
+
+
+
 

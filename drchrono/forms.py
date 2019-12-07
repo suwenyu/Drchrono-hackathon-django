@@ -103,9 +103,5 @@ class patient_info_form(forms.Form):
     # write cell phone constraints and home phone
     # add ethnicity field
     # add state and zip code info
-    
-    # def __init__(self, *args, **kwargs):
-    #     super(patient_info_form, self).__init__(*args, **kwargs)
-    #     self.patient = kwargs.pop('patient')
-    #     print self.patient
+
         
