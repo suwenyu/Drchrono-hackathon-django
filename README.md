@@ -85,6 +85,8 @@ who introduced you to the project. We try to minimize setup friction, but someti
 appreciate feedback about how to make things better!
 
 
+### [Backend Structures](STRUCTURES.md)
+
 ### ScreenShot
 
 1. Login Page
