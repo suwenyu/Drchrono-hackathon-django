@@ -10,7 +10,6 @@ from rest_framework.routers import DefaultRouter
 
 # Create a router and register our viewsets with it.
 router = DefaultRouter()
-# router.register(r'snippets', views.SnippetViewSet)
 router.register(r'appointments', views.AppointmentViewSet)
 
 
@@ -31,5 +30,6 @@ urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
     url(r'^index/$', views.IndexViewSet.as_view(), name='index'),
     url(r'^', include(router.urls)),
+
     url(r'', include('social.apps.django_app.urls', namespace='social')),
 ]

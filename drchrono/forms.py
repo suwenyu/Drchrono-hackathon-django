@@ -100,8 +100,5 @@ class patient_info_form(forms.Form):
         if not prog.match(zip_code):
             raise forms.ValidationError('Please insert valud phone number (*****)')
         return zip_code
-    # write cell phone constraints and home phone
-    # add ethnicity field
-    # add state and zip code info
 
         

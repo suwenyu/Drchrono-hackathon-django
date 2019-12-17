@@ -38,6 +38,3 @@ class Appointment(models.Model):
     checkin_time = models.DateTimeField(null=True)
     waiting_time = models.IntegerField(null=True)
     start_appointment_time = models.DateTimeField(null=True)
-
-    # def __str__(self):
-    #     return "ID: %d, Patient: %s, Doctor: %s" %(self.id, self.patient, self.doctor)

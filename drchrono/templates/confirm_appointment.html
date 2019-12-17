@@ -3,6 +3,21 @@
 {% block body %}
 
 <div class="container w-75">
+
+
+<div class="alert alert-success alert-dismissible fade" id="exampleAlert" role="alert">
+  <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+    <span aria-hidden="true">&times;</span>
+  </button>
+</div>
+
+<div class="alert alert-danger alert-dismissible fade" id="exampleAlert1" role="alert">
+  <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+    <span aria-hidden="true">&times;</span>
+  </button>
+</div>
+
+
 <table class="table">
   <thead>
     <tr>
@@ -35,7 +50,7 @@
       </td>
       <td>{{ appointment.exam_room }}</td>
       <td>
-        {% if appointment.status != "In Session" and appointment.status != "Complete" %}
+        {% if appointment.status != "In Session" and appointment.status != "Complete" and appointment.status != "Arrived" and appointment.status != "Cancelled" %}
         <button type="button" class="btn btn-light" id="{{ appointment.id }}" value="{{ appointment.id }}">CheckIn</button>
         {% endif %}
       </td>
@@ -60,6 +75,8 @@
 </div>
 
 
+
+
 <script>
     $("button").click(function(event) {
         event.preventDefault();
@@ -74,8 +91,10 @@
             success: function(result) {
                 // console.log(result);
                 console.log('success');
-                $('#exampleModalLabel').text(result);
-                $('#exampleModal').modal('show');
+                $('#exampleAlert').text(result);
+
+                $("#exampleAlert").addClass("show");
+                // $('#exampleAlert').modal('show');
                 // alert('ok');
                 var timer = setTimeout(function() {
                     window.location="{% url 'index' %}"
@@ -85,8 +104,9 @@
               console.log(result);
               if(result.status==403){
                 console.log("test");
-                $('#exampleModalLabel').text(result['responseText']);
-                $('#exampleModal').modal('show');
+                $('#exampleAlert1').text(result['responseText']);
+                $("#exampleAlert1").addClass("show");
+                // $('#exampleAlert').modal('show');
               }
                 // alert('ok');
             }

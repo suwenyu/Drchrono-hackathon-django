@@ -1,5 +1,5 @@
 from drchrono.models import Doctor, Patient, Appointment
-from drchrono.serializers import DoctorSerializer1, PatientSerializer1, AppointmentSerializer1
+from drchrono.serializers import DoctorSerializer, PatientSerializer, AppointmentSerializer
 
 data = {u'website': None, u'last_name': u'Su', u'suffix': None, u'specialty': u'Acupuncture', u'profile_picture': u'', u'group_npi_number': None, u'timezone': u'US/Eastern', u'id': 254818, u'first_name': u'Wen-Yuh', u'npi_number': u'', u'country': u'US', u'practice_group_name': u'', u'is_account_suspended': False, u'office_phone': u'3129272532', u'home_phone': u'', u'practice_group': 277763, u'cell_phone': u'3129272532', u'email': u'wsu23@uic.edu', u'job_title': u'API/Developer'}
 

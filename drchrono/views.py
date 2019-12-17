@@ -53,7 +53,7 @@ class IndexViewSet(generics.ListAPIView):
     authentication_classes = [SessionAuthentication, BasicAuthentication]
     permission_classes = [IsAuthenticated]
 
-    # serializer_class = retrieveAppointmentSerializer1
+    serializer_class = retrieveAppointmentSerializer
     renderer_classes = [TemplateHTMLRenderer]
 
     def list(self, request):
@@ -66,7 +66,8 @@ class IndexViewSet(generics.ListAPIView):
         request.session['doctor'] = doctor['id']
 
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        # today = datetime.strptime("2019-11-27", "%Y-%m-%d")
+        today = datetime.strptime("2019-12-16", "%Y-%m-%d")
+        
         tomorrow = today + timedelta(days=1)
 
         queryset = Appointment.objects.filter(
@@ -76,14 +77,16 @@ class IndexViewSet(generics.ListAPIView):
         ).order_by('scheduled_time')
         serializer = retrieveAppointmentSerializer(queryset, many=True)
 
-        wait_time = Appointment.objects.filter(
+        avg_wait_time = Appointment.objects.filter(
             scheduled_time__gte=today,
             scheduled_time__lte=tomorrow,
             doctor=doctor['id'],
             waiting_time__isnull=False
         ).aggregate(models.Avg('waiting_time'))['waiting_time__avg']
+        if avg_wait_time:
+            avg_wait_time = round(avg_wait_time, 2)
 
-        return Response({'appointments': serializer.data, 'wait_time' : wait_time, 'current_time':now()}, template_name='index.html')
+        return Response({'appointments': serializer.data, 'avg_wait_time' : avg_wait_time, 'current_time':now()}, template_name='index.html')
 
 
 class PatientCheckIn(FormView):
@@ -96,6 +99,7 @@ class PatientCheckIn(FormView):
     def form_valid(self, form):
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         # today = datetime.strptime("2019-11-27", "%Y-%m-%d")
+        today = datetime.strptime("2019-12-16", "%Y-%m-%d")
         tomorrow = today + timedelta(days=1)
 
         # print form
@@ -109,6 +113,7 @@ class PatientCheckIn(FormView):
         filters = {"{}".format(field): params[field] for field in params}
         try:
             patient = Patient.objects.get(**filters)
+
         except Patient.DoesNotExist:
             res = {}
             res['form'] = form
@@ -121,15 +126,16 @@ class PatientCheckIn(FormView):
             res['message'] = 'Multiple Account found'
             return render(self.request, 'checkin.html', res)
             
-        patient = Patient.objects.filter(**filters).values()
+        # patient = Patient.objects.filter(**filters).values()
+        
         appointments = Appointment.objects.filter(
             doctor=self.request.session['doctor'],
-            patient=patient[0]['id'], 
+            patient=patient.id, 
             scheduled_time__gte=today, 
             scheduled_time__lte=tomorrow
         ).order_by('scheduled_time').values()
 
-        return render(self.request, 'confirm_appointment.html', {"appointments": appointments, "patient":patient[0]})
+        return render(self.request, 'confirm_appointment.html', {"appointments": appointments, "patient":patient})
 
     def form_invalid(self, form):
         return render(self.request, "checkin.html", {'form': form})
@@ -160,14 +166,14 @@ class PatientUpdateInfo(FormView):
         context = self.get_context_data(**kwargs)
         context['form'] = form
 
-        patient = Patient.objects.filter(id=self.kwargs['patient']).values()[0]
+        patient = Patient.objects.get(id=self.kwargs['patient'])
         context['patient'] = patient
 
         return render(request, 'patient_info.html', context)
     
 
     def form_invalid(self, form):
-        patient = Patient.objects.filter(id=self.kwargs['patient']).values()[0]
+        patient = Patient.objects.get(id=self.kwargs['patient'])
         return render(self.request, 'patient_info.html', {'form' : form, 'patient' : patient })
 
     def form_valid(self, form):
@@ -207,19 +213,20 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         try:
             model = Appointment.objects.get(pk=pk)
             serializer = AppointmentSerializer(model, data=api_data)
+
+            if serializer.is_valid():
+                serializer.save()
+
+                message = 'Successfully check in.'
+                return HttpResponse(message, status=200)
+
         except Appointment.DoesNotExist:
-            serializer = AppointmentSerializer(data=api_data)
-
-        if serializer.is_valid():
-            serializer.save()
-
-            message = 'Successfully check in.'
-            return HttpResponse(message, status=200)
+            pass
 
         message = 'Sorry, fail to check in.'
         return HttpResponse(message, status=403)
 
-    @action(methods=['get'], detail=True, url_name='startappointment')
+    @action(methods=['post'], detail=True, url_name='startappointment')
     def startappointment(self, request, pk=None):
         oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
         access_token = oauth_provider.extra_data['access_token']
@@ -231,15 +238,16 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         try:
             model = Appointment.objects.get(pk=pk)
             serializer = AppointmentSerializer(model, data=api_data)
-        except appointment.DoesNotExist:
-            serializer = AppointmentSerializer(data=api_data)
 
-        if serializer.is_valid():
-            serializer.save()
+            if serializer.is_valid():
+                serializer.save()
+
+        except Appointment.DoesNotExist:
+            pass
 
         return redirect('index')
 
-    @action(methods=['get'], detail=True, url_name='endappointment')
+    @action(methods=['post'], detail=True, url_name='endappointment')
     def endappointment(self, request, pk=None):
         oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
         access_token = oauth_provider.extra_data['access_token']
@@ -251,15 +259,16 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         try:
             model = Appointment.objects.get(pk=pk)
             serializer = AppointmentSerializer(model, data=api_data)
-        except appointment.DoesNotExist:
-            serializer = AppointmentSerializer(data=api_data)
 
-        if serializer.is_valid():
-            serializer.save()
+            if serializer.is_valid():
+                serializer.save()
+
+        except Appointment.DoesNotExist:
+            pass
 
         return redirect('index')
 
-    @action(methods=['get'], detail=True, url_name='cancelappointment')
+    @action(methods=['post'], detail=True, url_name='cancelappointment')
     def cancelappointment(self, request, pk=None):
         oauth_provider = UserSocialAuth.objects.get(provider='drchrono')
         access_token = oauth_provider.extra_data['access_token']
@@ -271,11 +280,12 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         try:
             model = Appointment.objects.get(pk=pk)
             serializer = AppointmentSerializer(model, data=api_data)
-        except appointment.DoesNotExist:
-            serializer = AppointmentSerializer(data=api_data)
 
-        if serializer.is_valid():
-            serializer.save()
+            if serializer.is_valid():
+                serializer.save()
+
+        except Appointment.DoesNotExist:
+            pass
 
         return redirect('index')
 

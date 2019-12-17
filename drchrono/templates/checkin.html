@@ -4,7 +4,7 @@
 <div class="container w-75">
     <div class="checkin_form text-center">
         <h3>Please Fill in Info</h3>
-        <p>Enter either First and Last Name or Social Security Number</p>
+        <p>Enter First and Last Name and Social Security Number</p>
         
         {% if message %}
             <div class = "alert alert-danger col-md-6 offset-md-3">
@@ -19,7 +19,7 @@
                 
                 <div class="form-group col-md-6 offset-md-3">
                     
-                    {{ field.label_tag }} {% if field.field.required %}<span class="required">*</span>{% endif %}
+                    {{ field.label_tag }} {% if field.field.required %}<span class="badge badge-pill badge-warning required float-right">required</span>{% endif %}
                     {{ field }}
                     <strong style="color:#b30505">{{ field.errors.as_text }}</strong>
                     

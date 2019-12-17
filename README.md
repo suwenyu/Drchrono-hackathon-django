@@ -83,3 +83,22 @@ the application.
 If you have trouble at any point in the setup process, feel free to reach out to the developer
 who introduced you to the project. We try to minimize setup friction, but sometimes things go wrong, and we genuinely 
 appreciate feedback about how to make things better!
+
+
+### ScreenShot
+
+1. Login Page
+![img1](imgs/login.png "img1")
+
+2. Home Page
+![img2](imgs/index1.png "img2")
+![img3](imgs/index2.png "img3")
+
+3. CheckIn Form
+![img4](imgs/checkin.png "img4")
+
+4. Confirm CheckIn
+![img5](imgs/confirm.png "img5")
+
+5. Update Demographic
+![img6](imgs/update.png "img6")
