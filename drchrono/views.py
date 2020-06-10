@@ -66,7 +66,7 @@ class IndexViewSet(generics.ListAPIView):
         request.session['doctor'] = doctor['id']
 
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        today = datetime.strptime("2019-12-16", "%Y-%m-%d")
+        # today = datetime.strptime("2019-12-16", "%Y-%m-%d")
         
         tomorrow = today + timedelta(days=1)
 
@@ -99,7 +99,7 @@ class PatientCheckIn(FormView):
     def form_valid(self, form):
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         # today = datetime.strptime("2019-11-27", "%Y-%m-%d")
-        today = datetime.strptime("2019-12-16", "%Y-%m-%d")
+        # today = datetime.strptime("2019-12-16", "%Y-%m-%d")
         tomorrow = today + timedelta(days=1)
 
         # print form
